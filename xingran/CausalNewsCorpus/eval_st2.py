@@ -140,7 +140,7 @@ def keep_best_combinations_only(row, refs, preds):
     for points in get_combinations(row.id, row.id):
         
         # initialise
-        ce_metric = load_metric('eqeval_metric.py')
+        ce_metric = load_metric('seqeval_metric.py')
         sig_metric = load_metric('seqeval_metric.py')
 
         # add rounds
