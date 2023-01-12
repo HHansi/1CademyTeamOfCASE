@@ -706,11 +706,20 @@ def main():
             #     all_ce_tags.append(ce_tags)
         return {"tokens": all_tokens, "ce_tags": all_ce_tags, "s_tags": all_s_tags}
 
+    # debug*
+    print(f"train dataset shape: {raw_datasets['train'].shape}")
+
     raw_datasets['train'] = raw_datasets['train'].map(preprocessing, batched=True, remove_columns=raw_datasets['train'].column_names)
 
     if args.augmentation_file is not None:
+        # debug*
+        print(f"augment dataset shape: {augment_dataset.shape()}")
+
         augment_dataset = augment_dataset.map(preprocessing, batched=True, remove_columns=augment_dataset.column_names)
         raw_datasets['train'] = concatenate_datasets([raw_datasets['train'], augment_dataset])
+
+        # debug*
+        print(f"final train dataset shape: {raw_datasets['train'].shape}")
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
