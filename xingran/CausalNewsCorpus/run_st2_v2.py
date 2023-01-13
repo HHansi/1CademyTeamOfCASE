@@ -1274,6 +1274,8 @@ def main():
 
             if prev_best_overall_f1 == best_overall_f1:
                 not_improved_f1s.append(main_results["Overall"]["f1"])
+            else:
+                not_improved_f1s = []
 
             logger.info("Cause | P: {} | R: {} | F1: {}".format(main_results["Cause"]["precision"], main_results["Cause"]["recall"], main_results["Cause"]["f1"]))
             logger.info("Effect | P: {} | R: {} | F1: {}".format(main_results["Effect"]["precision"], main_results["Effect"]["recall"], main_results["Effect"]["f1"]))
@@ -1331,6 +1333,7 @@ def main():
                         f.write(json.dumps({"index": i, "prediction": prediction}) + "\n")
 
             if len(not_improved_f1s) == EARLY_STOPPING_PATIENCE:
+                print(f'Stopping training: {len(not_improved_f1s)}')
                 break
     else:
         assert args.load_checkpoint_for_test is not None
