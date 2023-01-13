@@ -76,7 +76,7 @@ logger = get_logger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
-EARLY_STOPPING_PATIENCE = 3
+EARLY_STOPPING_PATIENCE = 3  # set to 0 if don't want early stopping
 
 def set_seed(seed=1029):
     random.seed(seed)
@@ -1067,6 +1067,10 @@ def main():
         best_effect_f1 = 0.
         best_signal_f1 = 0.
 
+        best_models_cause_f1 = 0.
+        best_models_effect_f1 = 0.
+        best_models_signal_f1 = 0.
+
         not_improved_f1s = []
         
         total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -1275,6 +1279,9 @@ def main():
             if prev_best_overall_f1 == best_overall_f1:
                 not_improved_f1s.append(main_results["Overall"]["f1"])
             else:
+                best_models_cause_f1 = main_results["Cause"]["f1"]
+                best_models_effect_f1 = main_results["Effect"]["f1"]
+                best_models_signal_f1 = main_results["Signal"]["f1"]
                 not_improved_f1s = []
 
             logger.info("Cause | P: {} | R: {} | F1: {}".format(main_results["Cause"]["precision"], main_results["Cause"]["recall"], main_results["Cause"]["f1"]))
@@ -1332,8 +1339,12 @@ def main():
                     for i, prediction in enumerate(predictions):
                         f.write(json.dumps({"index": i, "prediction": prediction}) + "\n")
 
-            if len(not_improved_f1s) == EARLY_STOPPING_PATIENCE:
-                print(f'Stopping training: {len(not_improved_f1s)}')
+            if EARLY_STOPPING_PATIENCE != 0 and len(not_improved_f1s) == EARLY_STOPPING_PATIENCE:
+                print(f'Early stopping at {len(not_improved_f1s)} not improved epochs')
+
+                print(f'best_models_cause_f1: {best_models_cause_f1}')
+                print(f'best_models_effect_f1: {best_models_effect_f1}')
+                print(f'best_models_signal_f1: {best_models_signal_f1}')
                 break
     else:
         assert args.load_checkpoint_for_test is not None
