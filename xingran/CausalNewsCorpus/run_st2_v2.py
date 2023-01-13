@@ -76,7 +76,7 @@ logger = get_logger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
-EARLY_STOPPING_PATIENCE = 3  # set to 0 if don't want early stopping
+EARLY_STOPPING_PATIENCE = 5  # set to 0 if don't want early stopping
 
 def set_seed(seed=1029):
     random.seed(seed)
