@@ -68,7 +68,7 @@ from sklearn.metrics import accuracy_score
 # from transformers.utils import get_full_repo_name, send_example_telemetry
 # from transformers.utils.versions import require_version
 
-
+logging.basicConfig(level=logging.INFO)
 logger = get_logger(__name__)
 # require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/token-classification/requirements.txt")
 
@@ -76,6 +76,7 @@ logger = get_logger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
+EARLY_STOPPING_PATIENCE = 3
 
 def set_seed(seed=1029):
     random.seed(seed)
@@ -711,11 +712,18 @@ def main():
 
     raw_datasets['train'] = raw_datasets['train'].map(preprocessing, batched=True, remove_columns=raw_datasets['train'].column_names)
 
+    # debug*
+    print(f"train dataset shape: {raw_datasets['train'].shape}")
+
     if args.augmentation_file is not None:
         # debug*
-        print(f"augment dataset shape: {augment_dataset.shape()}")
+        print(f"augment dataset shape: {augment_dataset.shape}")
 
         augment_dataset = augment_dataset.map(preprocessing, batched=True, remove_columns=augment_dataset.column_names)
+
+        # debug*
+        print(f"augment dataset shape: {augment_dataset.shape}")
+
         raw_datasets['train'] = concatenate_datasets([raw_datasets['train'], augment_dataset])
 
         # debug*
@@ -1058,6 +1066,8 @@ def main():
         best_cause_f1 = 0.
         best_effect_f1 = 0.
         best_signal_f1 = 0.
+
+        not_improved_f1s = []
         
         total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
 
@@ -1255,10 +1265,15 @@ def main():
 
             main_results = evaluate(truth, predictions)
 
+            prev_best_overall_f1 = best_overall_f1
+
             best_overall_f1 = max(best_overall_f1, main_results["Overall"]["f1"])
             best_cause_f1 = max(best_cause_f1, main_results["Cause"]["f1"])
             best_effect_f1 = max(best_effect_f1, main_results["Effect"]["f1"])
             best_signal_f1 = max(best_signal_f1, main_results["Signal"]["f1"])
+
+            if prev_best_overall_f1 == best_overall_f1:
+                not_improved_f1s.append(main_results["Overall"]["f1"])
 
             logger.info("Cause | P: {} | R: {} | F1: {}".format(main_results["Cause"]["precision"], main_results["Cause"]["recall"], main_results["Cause"]["f1"]))
             logger.info("Effect | P: {} | R: {} | F1: {}".format(main_results["Effect"]["precision"], main_results["Effect"]["recall"], main_results["Effect"]["f1"]))
@@ -1314,6 +1329,9 @@ def main():
                 with open(f"{args.output_dir}/best-submission.json", "w") as f:
                     for i, prediction in enumerate(predictions):
                         f.write(json.dumps({"index": i, "prediction": prediction}) + "\n")
+
+            if len(not_improved_f1s) == EARLY_STOPPING_PATIENCE:
+                break
     else:
         assert args.load_checkpoint_for_test is not None
         model.load_state_dict(torch.load(args.load_checkpoint_for_test))
